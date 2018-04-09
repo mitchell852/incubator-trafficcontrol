@@ -45,6 +45,7 @@ import (
 	"github.com/apache/incubator-trafficcontrol/traffic_ops/traffic_ops_golang/profile"
 	"github.com/apache/incubator-trafficcontrol/traffic_ops/traffic_ops_golang/profileparameter"
 	"github.com/apache/incubator-trafficcontrol/traffic_ops/traffic_ops_golang/region"
+	"github.com/apache/incubator-trafficcontrol/traffic_ops/traffic_ops_golang/role"
 	"github.com/apache/incubator-trafficcontrol/traffic_ops/traffic_ops_golang/server"
 	"github.com/apache/incubator-trafficcontrol/traffic_ops/traffic_ops_golang/status"
 	"github.com/apache/incubator-trafficcontrol/traffic_ops/traffic_ops_golang/systeminfo"
@@ -170,6 +171,13 @@ func Routes(d ServerData) ([]Route, http.Handler, error) {
 		{1.3, http.MethodPut, `regions/{id}$`, api.UpdateHandler(region.GetRefType(), d.DB), auth.PrivLevelOperations, Authenticated, nil},
 		{1.3, http.MethodPost, `regions/?$`, api.CreateHandler(region.GetRefType(), d.DB), auth.PrivLevelOperations, Authenticated, nil},
 		{1.3, http.MethodDelete, `regions/{id}$`, api.DeleteHandler(region.GetRefType(), d.DB), auth.PrivLevelOperations, Authenticated, nil},
+
+		//Roles
+		{1.3, http.MethodGet, `roles/?(\.json)?$`, api.ReadHandler(role.GetRefType(), d.DB), auth.PrivLevelReadOnly, Authenticated, nil},
+		{1.3, http.MethodGet, `roles/{id}$`, api.ReadHandler(role.GetRefType(), d.DB), auth.PrivLevelReadOnly, Authenticated, nil},
+		{1.3, http.MethodPut, `roles/{id}$`, api.UpdateHandler(role.GetRefType(), d.DB), auth.PrivLevelOperations, Authenticated, nil},
+		{1.3, http.MethodPost, `roles/?$`, api.CreateHandler(role.GetRefType(), d.DB), auth.PrivLevelOperations, Authenticated, nil},
+		{1.3, http.MethodDelete, `roles/{id}$`, api.DeleteHandler(role.GetRefType(), d.DB), auth.PrivLevelOperations, Authenticated, nil},
 
 		//Parameters
 		{1.3, http.MethodGet, `parameters/?(\.json)?$`, api.ReadHandler(parameter.GetRefType(), d.DB), auth.PrivLevelReadOnly, Authenticated, nil},
