@@ -17,16 +17,16 @@
  * under the License.
  */
 
-var FormDeliveryServiceController = function(deliveryService, dsCurrent, origin, type, types, $scope, $location, $uibModal, $window, formUtils, locationUtils, tenantUtils, deliveryServiceUtils, cdnService, profileService, tenantService, propertiesModel, userModel) {
+let FormDeliveryServiceController = function(deliveryService, dsCurrent, origin, type, types, $scope, $location, $uibModal, $window, formUtils, locationUtils, tenantUtils, deliveryServiceUtils, cdnService, profileService, tenantService, propertiesModel, userModel) {
 
-    var getCDNs = function() {
+    let getCDNs = function() {
         cdnService.getCDNs()
             .then(function(result) {
                 $scope.cdns = result;
             });
     };
 
-    var getProfiles = function() {
+    let getProfiles = function() {
         profileService.getProfiles({ orderby: 'name' })
             .then(function(result) {
                 $scope.profiles = _.filter(result, function(profile) {
@@ -35,7 +35,7 @@ var FormDeliveryServiceController = function(deliveryService, dsCurrent, origin,
             });
     };
 
-    var getTenants = function() {
+    let getTenants = function() {
         tenantService.getTenant(userModel.user.tenantId)
             .then(function(tenant) {
                 tenantService.getTenants()
@@ -59,9 +59,9 @@ var FormDeliveryServiceController = function(deliveryService, dsCurrent, origin,
     $scope.dsRequestsEnabled = propertiesModel.properties.dsRequests.enabled;
 
     $scope.edgeFQDNs = function(ds) {
-        var urlString = '';
+        let urlString = '';
         if (_.isArray(ds.exampleURLs) && ds.exampleURLs.length > 0) {
-            for (var i = 0; i < ds.exampleURLs.length; i++) {
+            for (let i = 0; i < ds.exampleURLs.length; i++) {
                 urlString += ds.exampleURLs[i] + '\n';
             }
         }
@@ -85,7 +85,7 @@ var FormDeliveryServiceController = function(deliveryService, dsCurrent, origin,
     };
 
     $scope.types = _.filter(types, function(currentType) {
-        var category;
+        let category;
         if (type.indexOf('ANY_MAP') != -1) {
             category = 'ANY_MAP';
         } else if (type.indexOf('DNS') != -1) {
@@ -213,11 +213,11 @@ var FormDeliveryServiceController = function(deliveryService, dsCurrent, origin,
     };
 
     $scope.clone = function(ds) {
-        var params = {
+        let params = {
             title: 'Clone Delivery Service: ' + ds.xmlId,
             message: "Please select a content routing category for the clone"
         };
-        var modalInstance = $uibModal.open({
+        let modalInstance = $uibModal.open({
             templateUrl: 'common/modules/dialog/select/dialog.select.tpl.html',
             controller: 'DialogSelectController',
             size: 'md',
@@ -300,16 +300,34 @@ var FormDeliveryServiceController = function(deliveryService, dsCurrent, origin,
         $location.path($location.path() + '/charts');
     };
 
+    $scope.addQueryParam = function() {
+        $scope.deliveryService.consistentHashQueryParams.push('');
+    };
+
+    $scope.removeQueryParam = function(index) {
+        if ($scope.deliveryService.consistentHashQueryParams.length > 1) {
+            $scope.deliveryService.consistentHashQueryParams.splice(index, 1);
+        } else {
+            // just blank it out rather than removing the row. empty strings get stripped out on save anyhow.
+            $scope.deliveryService.consistentHashQueryParams[index] = '';
+        }
+        $scope.deliveryServiceForm.$pristine = false; // this enables the 'update' button
+    };
+
     $scope.navigateToPath = locationUtils.navigateToPath;
 
     $scope.hasError = formUtils.hasError;
 
     $scope.hasPropertyError = formUtils.hasPropertyError;
 
-    var init = function () {
+    let init = function () {
         getCDNs();
         getProfiles();
         getTenants();
+        if (deliveryService.consistentHashQueryParams && deliveryService.consistentHashQueryParams.length < 1) {
+            // add an empty one so the form field shows up. empty strings get stripped out on save anyhow.
+            $scope.deliveryService.consistentHashQueryParams = [ '' ];
+        }
     };
     init();
 
