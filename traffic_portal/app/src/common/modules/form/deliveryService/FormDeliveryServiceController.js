@@ -308,10 +308,11 @@ let FormDeliveryServiceController = function(deliveryService, dsCurrent, origin,
         if ($scope.deliveryService.consistentHashQueryParams.length > 1) {
             $scope.deliveryService.consistentHashQueryParams.splice(index, 1);
         } else {
-            // just blank it out rather than removing the row. empty strings get stripped out on save anyhow.
+            // if only one query param is left, don't remove the item from the array. instead, just blank it out
+            // so the dynamic form widget will still be visible. empty strings get stripped out on save anyhow.
             $scope.deliveryService.consistentHashQueryParams[index] = '';
         }
-        $scope.deliveryServiceForm.$pristine = false; // this enables the 'update' button
+        $scope.deliveryServiceForm.$pristine = false; // this enables the 'update' button in the ds form
     };
 
     $scope.navigateToPath = locationUtils.navigateToPath;
@@ -325,7 +326,7 @@ let FormDeliveryServiceController = function(deliveryService, dsCurrent, origin,
         getProfiles();
         getTenants();
         if (deliveryService.consistentHashQueryParams && deliveryService.consistentHashQueryParams.length < 1) {
-            // add an empty one so the form field shows up. empty strings get stripped out on save anyhow.
+            // add an empty one so the dynamic form widget is visible. empty strings get stripped out on save anyhow.
             $scope.deliveryService.consistentHashQueryParams = [ '' ];
         }
     };
