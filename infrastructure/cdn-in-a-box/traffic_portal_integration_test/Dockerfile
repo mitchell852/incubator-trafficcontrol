@@ -22,13 +22,13 @@ COPY ./traffic_portal/ /lang/traffic_portal/
 
 WORKDIR /lang/traffic_portal/test/end_to_end
 RUN printf "\n\
-[google-chrome-stable] \n\
-name=google-chrome-stable \n\
+[google-chrome] \n\
+name=google-chrome \n\
 baseurl=http://dl.google.com/linux/chrome/rpm/stable/x86_64 \n\
 enabled=1 \n\
 gpgcheck=1 \n\
 gpgkey=https://dl-ssl.google.com/linux/linux_signing_key.pub \n\
-" > /etc/yum.repos.d/google-chrome-stable.repo
+" > /etc/yum.repos.d/google-chrome.repo
 
 RUN yum update -y
 
@@ -60,7 +60,7 @@ RUN export junit_conf_jasmine=" \
 
 RUN export junit_conf_chrome=", \
                 'chromeOptions': { \
-                      'args': ['--headless', '--disable-gpu', '--no-sandbox', '--ignore-certificate-errors'] \
+                      'args': ['--headless', '--disable-gpu', '--no-sandbox', '--ignore-certificate-errors', '--disable-extensions', '--whitelisted-ips'] \
                     } \
 " && perl -p -i -e 's/(\s*'"'"'browserName'"'"':\s*'"'"'chrome'"'"')/\1\n$ENV{junit_conf_chrome}/g' conf.js
 
@@ -68,6 +68,7 @@ RUN export junit_conf_chrome=", \
 RUN cat conf.js
 RUN cat login/conf.js
 
+RUN webdriver-manager clean
 RUN webdriver-manager update
 
 COPY ./infrastructure/cdn-in-a-box/traffic_portal_integration_test/run.sh /lang/traffic_portal/test/end_to_end/
