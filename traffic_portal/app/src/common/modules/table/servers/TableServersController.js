@@ -128,41 +128,39 @@ var TableServersController = function(servers, $scope, $state, $uibModal, $windo
             );
     };
 
-    $scope.servers = servers;
-
     $scope.columns = [
-        { "name": "Cache Group", "visible": true, "searchable": true },
-        { "name": "CDN", "visible": true, "searchable": true },
-        { "name": "Domain", "visible": true, "searchable": true },
-        { "name": "Host", "visible": true, "searchable": true },
-        { "name": "HTTPS Port", "visible": false, "searchable": false },
-        { "name": "ID", "visible": false, "searchable": false },
-        { "name": "ILO IP Address", "visible": true, "searchable": true },
-        { "name": "ILO IP Gateway", "visible": false, "searchable": false },
-        { "name": "ILO IP Netmask", "visible": false, "searchable": false },
-        { "name": "ILO Username", "visible": false, "searchable": false },
-        { "name": "Interface Name", "visible": false, "searchable": false },
-        { "name": "IPv6 Address", "visible": true, "searchable": true },
-        { "name": "IPv6 Gateway", "visible": false, "searchable": false },
-        { "name": "Last Updated", "visible": false, "searchable": false },
-        { "name": "Mgmt IP Address", "visible": false, "searchable": false },
-        { "name": "Mgmt IP Gateway", "visible": false, "searchable": false },
-        { "name": "Mgmt IP Netmask", "visible": false, "searchable": false },
-        { "name": "Network Gateway", "visible": false, "searchable": false },
-        { "name": "Network IP", "visible": true, "searchable": true },
-        { "name": "Network MTU", "visible": false, "searchable": false },
-        { "name": "Network Subnet", "visible": false, "searchable": false },
-        { "name": "Offline Reason", "visible": false, "searchable": false },
-        { "name": "Phys Location", "visible": true, "searchable": true },
-        { "name": "Profile", "visible": true, "searchable": true },
-        { "name": "Rack", "visible": false, "searchable": false },
-        { "name": "Reval Pending", "visible": false, "searchable": false },
-        { "name": "Router Hostname", "visible": false, "searchable": false },
-        { "name": "Router Port Name", "visible": false, "searchable": false },
-        { "name": "Status", "visible": true, "searchable": true },
-        { "name": "TCP Port", "visible": false, "searchable": false },
-        { "name": "Type", "visible": true, "searchable": true },
-        { "name": "Update Pending", "visible": true, "searchable": true }
+        { "data": "cachegroup", "name": "Cache Group", "visible": true, "searchable": true },
+        { "data": "cdnName", "name": "CDN", "visible": true, "searchable": true },
+        { "data": "domainName", "name": "Domain", "visible": true, "searchable": true },
+        { "data": "hostName", "name": "Host", "visible": true, "searchable": true },
+        { "data": "httpsPort", "name": "HTTPS Port", "visible": false, "searchable": false },
+        { "data": "id", "name": "ID", "visible": false, "searchable": false },
+        { "data": "iloIpAddress", "name": "ILO IP Address", "visible": true, "searchable": true },
+        { "data": "iloIpGateway", "name": "ILO IP Gateway", "visible": false, "searchable": false },
+        { "data": "iloIpNetmask", "name": "ILO IP Netmask", "visible": false, "searchable": false },
+        { "data": "iloUsername", "name": "ILO Username", "visible": false, "searchable": false },
+        { "data": "interfaceName", "name": "Interface Name", "visible": false, "searchable": false },
+        { "data": "ip6Address", "name": "IPv6 Address", "visible": true, "searchable": true },
+        { "data": "ip6Gateway", "name": "IPv6 Gateway", "visible": false, "searchable": false },
+        { "data": "lastUpdated", "name": "Last Updated", "visible": false, "searchable": false },
+        { "data": "mgmtIpAddress", "name": "Mgmt IP Address", "visible": false, "searchable": false },
+        { "data": "mgmtIpGateway", "name": "Mgmt IP Gateway", "visible": false, "searchable": false },
+        { "data": "mgmtIpNetmask", "name": "Mgmt IP Netmask", "visible": false, "searchable": false },
+        { "data": "ipGateway", "name": "Network Gateway", "visible": false, "searchable": false },
+        { "data": "ipAddress", "name": "Network IP", "visible": true, "searchable": true },
+        { "data": "interfaceMtu", "name": "Network MTU", "visible": false, "searchable": false },
+        { "data": "ipNetmask", "name": "Network Subnet", "visible": false, "searchable": false },
+        { "data": "offlineReason", "name": "Offline Reason", "visible": false, "searchable": false },
+        { "data": "physLocation", "name": "Phys Location", "visible": true, "searchable": true },
+        { "data": "profile", "name": "Profile", "visible": true, "searchable": true },
+        { "data": "rack", "name": "Rack", "visible": false, "searchable": false },
+        { "data": "revalPending", "name": "Reval Pending", "visible": false, "searchable": false },
+        { "data": "routerHostName", "name": "Router Hostname", "visible": false, "searchable": false },
+        { "data": "routerPortName", "name": "Router Port Name", "visible": false, "searchable": false },
+        { "data": "status", "name": "Status", "visible": true, "searchable": true },
+        { "data": "tcpPort", "name": "TCP Port", "visible": false, "searchable": false },
+        { "data": "type", "name": "Type", "visible": true, "searchable": true },
+        { "data": "updPending", "name": "Update Pending", "visible": true, "searchable": true }
     ];
 
     $scope.contextMenuItems = [
@@ -400,10 +398,34 @@ var TableServersController = function(servers, $scope, $state, $uibModal, $windo
 
     angular.element(document).ready(function () {
         serversTable = $('#serversTable').DataTable({
+            "serverSide": true,
+            "paging": true,
+            "searching": { "regex": true },
             "lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
-            "iDisplayLength": 25,
-            "aaSorting": [],
             "columns": $scope.columns,
+            "colReorder": {
+                realtime: false
+            },
+            "ajax": function(data, callback, settings) {
+                // make a regular ajax request using data.start and data.length
+                serverService.getServers({
+                        limit: data.length,
+                        offset: data.start + 1,
+                        orderby: data.columns[data.order[0].column].data,
+                        sortOrder: data.order[0].dir,
+                        contains: data.search.value
+                    }
+                ).then(
+                    function(response) {
+                        // map your server's response to the DataTables format and pass it to DataTables' callback
+                        callback({
+                            recordsTotal: servers.length,
+                            recordsFiltered: servers.length,
+                            data: response
+                        });
+                    }
+                );
+            },
             "initComplete": function(settings, json) {
                 try {
                     // need to create the show/hide column checkboxes and bind to the current visibility
