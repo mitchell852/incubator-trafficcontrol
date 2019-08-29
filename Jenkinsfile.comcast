@@ -1,0 +1,215 @@
+#!groovy
+def YUM_HOST = 'yum-hub.cdn.comcast.net'
+def SSH_OPTS = '-o StrictHostKeyChecking=no -o Loglevel=ERROR'
+def RPM_DEST = '/var/www/html/yum/Centos7.2.1511/x86_64/Addons/'
+def TARGET_EXECUTOR_LABEL = 'remote'
+def DOCKER_COMPOSE_CMD = 'sudo docker-compose'
+def PKG_CMD = 'sudo ./pkg'
+def CHOWN_CMD = 'sudo chown'
+def CP_CMD = 'sudo cp'
+def RPM_DEST = '/opt/repo/yum/traffic-control/7/x86_64'
+pipeline {
+    agent { label "${TARGET_EXECUTOR_LABEL}" }
+    environment {
+      COMPOSE_PROJECT_NAME = "TC-${JOB_NAME}-${BRANCH_NAME}"
+    }
+    options {
+      skipDefaultCheckout()
+      timestamps()
+    }
+    stages {
+        stage('Checkout') {
+            steps{
+                sh '${CHOWN_CMD} -R jenkins:jenkins .'
+                deleteDir()
+                checkout scm
+                sh 'mkdir dist'
+                sh 'mkdir junit'
+            }
+        }
+        stage('Build') {
+            post {
+                failure {
+                    archiveArtifacts artifacts: 'dist/*.txt', onlyIfSuccessful: false
+                    archiveArtifacts artifacts: 'dist/*.log', onlyIfSuccessful: false
+                }
+                always {
+                    sh "${DOCKER_COMPOSE_CMD} -f infrastructure/docker/build/docker-compose.yml --no-ansi down -v"
+                }
+            }
+            steps{
+                // have to run this with sudo because of puppet idempotency
+                sh "${PKG_CMD} -v"
+                stash name: 'workspace'
+                stash name: 'dist', includes: 'dist/*.rpm,dist/*.txt,dist/*.log'
+            }
+        }
+        stage("Run Tests"){
+            parallel {
+                stage('TO Unit Tests (Golang)') {
+                    agent { label 'remote' }
+                    steps{
+                        sh '${CHOWN_CMD} -R jenkins:jenkins .'
+                        deleteDir()
+                        unstash name: "workspace"
+                        sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficops-test-${EXECUTOR_NUMBER} -f traffic_ops/app/bin/tests/docker-compose.yml --no-ansi build --no-cache unit_golang"
+                        sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficops-test-${EXECUTOR_NUMBER} -f traffic_ops/app/bin/tests/docker-compose.yml up --no-color --force-recreate --exit-code-from unit_golang unit_golang"
+                    }
+                    post {
+                        always {
+                            sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficops-test-${EXECUTOR_NUMBER} -f traffic_ops/app/bin/tests/docker-compose.yml --no-ansi down -v --rmi all"
+	                        junit 'junit/*.xml'
+	                        archiveArtifacts artifacts: 'junit/*.log', allowEmptyArchive: true
+                            //deleteDir()
+                        }
+                    }
+                }
+                stage('TR Unit Tests') {
+                    agent { label 'remote' }
+                    steps{
+                        sh '${CHOWN_CMD} -R jenkins:jenkins .'
+                        deleteDir()
+                        unstash name: "workspace"
+                        sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficrouter-test-${EXECUTOR_NUMBER} -f traffic_router/tests/docker-compose.yml --no-ansi build --no-cache unit_router"
+                        sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficrouter-test-${EXECUTOR_NUMBER} -f traffic_router/tests/docker-compose.yml up --no-color --force-recreate --exit-code-from unit_router unit_router"
+                    }
+                   post {
+                        always {
+                            sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficrouter-test-${EXECUTOR_NUMBER} -f traffic_router/tests/docker-compose.yml --no-ansi down -v --rmi all"
+                            junit 'junit/*.xml'
+                            //deleteDir()
+                        }
+                    }
+                }
+
+                stage('TM Unit Tests') {
+                    agent { label 'remote' }
+                    steps{
+                        sh '${CHOWN_CMD} -R jenkins:jenkins .'
+                        deleteDir()
+                        unstash name: "workspace"
+                        sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficmonitor-test-${EXECUTOR_NUMBER} -f traffic_monitor/tests/docker-compose.yml --no-ansi build --no-cache unit_monitor"
+                        sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficmonitor-test-${EXECUTOR_NUMBER} -f traffic_monitor/tests/docker-compose.yml up --no-color --force-recreate --exit-code-from unit_monitor unit_monitor"
+                    }
+                    post {
+                        always {
+                            sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficmonitor-test-${EXECUTOR_NUMBER} -f traffic_monitor/tests/docker-compose.yml --no-ansi down -v --rmi all"
+                            junit 'junit/*.xml'
+                            archiveArtifacts artifacts: 'junit/*.log', allowEmptyArchive: true
+                            //deleteDir()
+                        }
+                    }
+                }
+
+                stage('TO API Tests (Golang)') {
+                    agent { label 'remote' }
+                    options {
+                        timeout(time: 2, unit: 'HOURS')
+                    }
+                    steps{
+                        sh '${CHOWN_CMD} -R jenkins:jenkins .'
+                        deleteDir()
+                        unstash name: "workspace"
+
+                        sh "${CP_CMD} dist/traffic_ops-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_ops/traffic_ops.rpm"
+                        sh "${CP_CMD} dist/traffic_monitor-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_monitor/traffic_monitor.rpm"
+                        sh "${CP_CMD} dist/traffic_router-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_router/traffic_router.rpm"
+                        sh "${CP_CMD} dist/traffic_portal-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_portal/traffic_portal.rpm"
+                        sh "${CP_CMD} dist/tomcat-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_router/tomcat.rpm"
+                        sh "mkdir -p infrastructure/cdn-in-a-box/traffic_ops/overrides"
+                        sh "cd infrastructure/cdn-in-a-box && ${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficops-apitest-${EXECUTOR_NUMBER} -f docker-compose.yml up -d --build db trafficops-perl trafficportal trafficops"
+                        sh "cd infrastructure/cdn-in-a-box && ${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficops-apitest-${EXECUTOR_NUMBER} -f docker-compose.traffic-ops-test.yml up --build integration"
+                    }
+                    post {
+                        always {
+                            sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficops-apitest-${EXECUTOR_NUMBER} -f infrastructure/cdn-in-a-box/docker-compose.traffic-ops-test.yml --no-ansi down -v --rmi all || true"
+                            sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficops-apitest-${EXECUTOR_NUMBER} -f infrastructure/cdn-in-a-box/docker-compose.yml --no-ansi down -v --rmi all || true"
+                            junit 'junit/*.xml'
+                            archiveArtifacts artifacts: 'junit/*.log', allowEmptyArchive: true
+                            //deleteDir()
+                        }
+                    }
+                }
+                stage('TP Tests') {
+                    agent { label 'remote' }
+                    options {
+                        timeout(time: 2, unit: 'HOURS')
+                    }
+                    steps{
+                        sh '${CHOWN_CMD} -R jenkins:jenkins .'
+                        deleteDir()
+                        unstash name: "workspace"
+
+                        sh "${CP_CMD} dist/traffic_ops-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_ops/traffic_ops.rpm"
+                        sh "${CP_CMD} dist/traffic_monitor-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_monitor/traffic_monitor.rpm"
+                        sh "${CP_CMD} dist/traffic_router-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_router/traffic_router.rpm"
+                        sh "${CP_CMD} dist/traffic_portal-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_portal/traffic_portal.rpm"
+                        sh "${CP_CMD} dist/tomcat-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_router/tomcat.rpm"
+                        sh "mkdir -p infrastructure/cdn-in-a-box/traffic_ops/overrides"
+                        sh "cd infrastructure/cdn-in-a-box && ${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficportal-test-${EXECUTOR_NUMBER} -f docker-compose.yml up -d --build db trafficops-perl trafficportal trafficops"
+                        sh "cd infrastructure/cdn-in-a-box && ${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficportal-test-${EXECUTOR_NUMBER} -f docker-compose.traffic-portal-test.yml up --build portal-integration-test"
+                    }
+                    post {
+                        always {
+                            sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficportal-test-${EXECUTOR_NUMBER} -f infrastructure/cdn-in-a-box/docker-compose.traffic-portal-test.yml --no-ansi down -v --rmi all || true"
+                            sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficportal-test-${EXECUTOR_NUMBER} -f infrastructure/cdn-in-a-box/docker-compose.yml --no-ansi down -v --rmi all || true"
+                            junit 'junit/*.xml'
+                            archiveArtifacts artifacts: 'junit/*.log', allowEmptyArchive: true
+                            //deleteDir()
+                        }
+                    }
+                }
+                stage('TODB Tests') {
+                    agent { label 'remote' }
+                    steps{
+                        sh '${CHOWN_CMD} -R jenkins:jenkins .'
+                        deleteDir()
+                        dir("misc") {
+                            git branch: 'master', credentialsId: 'jenkins_unix_sshkey', url: 'git@github.comcast.com:cdneng/misc.git'
+                        }
+                        dir("trafficcontrol") {
+                            unstash name: "workspace"
+                            withCredentials([usernamePassword(credentialsId: 'prod_to_maintenance_upwd	', usernameVariable: 'TO_USER', passwordVariable: 'TO_PASSWORD')]) {
+                                sh ". ../misc/traffic_ops_comcast/to-functions.sh && TO_SERVER=https://trafficops.comcast.net TO_USER=${TO_USER} TO_PASSWORD=${TO_PASSWORD} dump_source_db traffic_ops_db/test/docker/initdb.d/testdump.dump"
+                            }
+                            sh "cp dist/traffic_ops-*[^.src.].rpm traffic_ops_db/test/docker/traffic_ops.rpm"
+                            sh "${DOCKER_COMPOSE_CMD} -f traffic_ops_db/test/docker/docker-compose.yml -p ${COMPOSE_PROJECT_NAME}-todb-test-${EXECUTOR_NUMBER} --no-ansi build --no-cache"
+                            sh "${DOCKER_COMPOSE_CMD} -f traffic_ops_db/test/docker/docker-compose.yml -p ${COMPOSE_PROJECT_NAME}-todb-test-${EXECUTOR_NUMBER} --no-ansi up --no-color --force-recreate --exit-code-from trafficops-db-admin"
+                        }
+                    }
+                    post {
+                        always {
+                            dir("trafficcontrol") {
+                                sh "${DOCKER_COMPOSE_CMD} -f traffic_ops_db/test/docker/docker-compose.yml -p ${COMPOSE_PROJECT_NAME}-todb-test-${EXECUTOR_NUMBER} --no-ansi down -v --rmi all"
+                                sh "rm traffic_ops_db/test/docker/initdb.d/testdump.dump"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        stage('Publish to yum-hub'){
+            steps{
+                sh '${CHOWN_CMD} -R jenkins:jenkins .'
+                deleteDir()
+                unstash name: 'dist'
+                sshagent(['jenkins_unix_sshkey']) {
+                    sh "rsync --perms --chmod=u+rwx,g+r,o+r -e \" ssh ${SSH_OPTS}\" dist/*[^src.].rpm repo@${YUM_HOST}:${RPM_DEST}/Packages/"
+                    sh "ssh ${SSH_OPTS} repo@${YUM_HOST} createrepo-safe.sh -d ${RPM_DEST}"
+                    sh "ssh ${SSH_OPTS} repo@${YUM_HOST} rsync-tc.sh"
+                }
+            }
+        }
+    }
+    post {
+        success {
+            slackSend (color: '#00FF00', message: "SUCCESSFUL: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+        }
+        failure {
+            slackSend (color: '#FF0000', message: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+        }
+        unstable {
+            slackSend (color: '#FFFF00', message: "UNSTABLE: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL}/testReport/)")
+        }
+    }
+}

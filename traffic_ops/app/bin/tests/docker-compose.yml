@@ -18,6 +18,7 @@
 version: '2'
 
 volumes:
+  junit:
   traffic_ops_golang:
 
 services:
@@ -30,4 +31,5 @@ services:
       dockerfile: traffic_ops/app/bin/tests/Dockerfile-golangtest
     volumes:
       - traffic_ops_golang:/traffic_ops_golang
+      - ../../../../junit:/junit
 

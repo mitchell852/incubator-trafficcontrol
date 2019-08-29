@@ -19,9 +19,11 @@ ADD traffic_ops /go/src/$DIR/traffic_ops
 ADD lib /go/src/$DIR/lib
 ADD traffic_monitor /go/src/$DIR/traffic_monitor
 ADD vendor /go/src/$DIR/vendor
+VOLUME ["/junit"]
 
 WORKDIR /go/src/$DIR/traffic_ops/traffic_ops_golang
 
-CMD bash -c 'go get -v && go test -cover -v ./... ../../lib/go-tc/...'
+RUN bash -c "go get -u github.com/jstemmer/go-junit-report"
+CMD bash -c 'go get -v && go test -cover -v ./... ../../lib/go-tc/... 2>&1 | go-junit-report --package-name=golang.test.to --set-exit-code > /junit/golang.test.to.xml && chmod 777 -R /junit'
 #
 # vi:syntax=Dockerfile

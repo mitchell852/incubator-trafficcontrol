@@ -22,6 +22,7 @@ traffic_router/*.log
 .dbInfo
 /dist
 *.pyc
+Jenkinsfile
 bin/docker-compose
 /.m2
 # local storage for cdn-in-a-box Carton packages

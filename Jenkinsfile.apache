@@ -1,0 +1,170 @@
+#!groovy
+/*
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+*/
+def TARGET_EXECUTOR_LABEL = 'ubuntu'
+def DOCKER_COMPOSE_CMD = 'docker-compose'
+def PKG_CMD = './pkg'
+def CHOWN_CMD = 'chown'
+def CP_CMD = 'cp'
+pipeline {
+    agent { label "${TARGET_EXECUTOR_LABEL}" }
+    environment {
+      COMPOSE_PROJECT_NAME = "TC-${JOB_NAME}-${BRANCH_NAME}"
+    }
+    options {
+      skipDefaultCheckout()
+      timestamps()
+    }
+    stages {
+        stage('Checkout') {
+            steps{
+                deleteDir()
+                checkout scm
+                sh 'mkdir dist'
+            }
+        }
+        stage('Build') {
+            post {
+                failure {
+                    archiveArtifacts artifacts: 'dist/*.txt', onlyIfSuccessful: false
+                    archiveArtifacts artifacts: 'dist/*.log', onlyIfSuccessful: false
+                }
+                always {
+                    sh "${DOCKER_COMPOSE_CMD} -f infrastructure/docker/build/docker-compose.yml --no-ansi down -v"
+                }
+            }
+            steps{
+                sh "${PKG_CMD} -v"
+                stash name: 'workspace'
+                stash name: 'dist', includes: 'dist/*.rpm,dist/*.txt,dist/*.log'
+            }
+        }
+        stage("Run Tests"){
+            parallel {
+                stage('TO Unit Tests (Golang)') {
+                    agent { label 'remote' }
+                    steps{
+                        deleteDir()
+                        unstash name: "workspace"
+                        sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficops-test-${EXECUTOR_NUMBER} -f traffic_ops/app/bin/tests/docker-compose.yml --no-ansi build --no-cache unit_golang"
+                        sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficops-test-${EXECUTOR_NUMBER} -f traffic_ops/app/bin/tests/docker-compose.yml up --no-color --force-recreate --exit-code-from unit_golang unit_golang"
+                    }
+                    post {
+                        always {
+                            sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficops-test-${EXECUTOR_NUMBER} -f traffic_ops/app/bin/tests/docker-compose.yml --no-ansi down -v --rmi all"
+	                        junit 'junit/*.xml'
+	                        archiveArtifacts artifacts: 'junit/*.log', allowEmptyArchive: true
+                            //deleteDir()
+                        }
+                    }
+                }
+                stage('TR Unit Tests') {
+                    agent { label 'remote' }
+                    steps{
+                        deleteDir()
+                        unstash name: "workspace"
+                        sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficrouter-test-${EXECUTOR_NUMBER} -f traffic_router/tests/docker-compose.yml --no-ansi build --no-cache unit_router"
+                        sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficrouter-test-${EXECUTOR_NUMBER} -f traffic_router/tests/docker-compose.yml up --no-color --force-recreate --exit-code-from unit_router unit_router"
+                    }
+                   post {
+                        always {
+                            sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficrouter-test-${EXECUTOR_NUMBER} -f traffic_router/tests/docker-compose.yml --no-ansi down -v --rmi all"
+                            junit 'junit/*.xml'
+                            //deleteDir()
+                        }
+                    }
+                }
+
+                stage('TM Unit Tests') {
+                    agent { label 'remote' }
+                    steps{
+                        deleteDir()
+                        unstash name: "workspace"
+                        sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficmonitor-test-${EXECUTOR_NUMBER} -f traffic_monitor/tests/docker-compose.yml --no-ansi build --no-cache unit_monitor"
+                        sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficmonitor-test-${EXECUTOR_NUMBER} -f traffic_monitor/tests/docker-compose.yml up --no-color --force-recreate --exit-code-from unit_monitor unit_monitor"
+                    }
+                    post {
+                        always {
+                            sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficmonitor-test-${EXECUTOR_NUMBER} -f traffic_monitor/tests/docker-compose.yml --no-ansi down -v --rmi all"
+                            junit 'junit/*.xml'
+                            archiveArtifacts artifacts: 'junit/*.log', allowEmptyArchive: true
+                            //deleteDir()
+                        }
+                    }
+                }
+
+                stage('TO API Tests (Golang)') {
+                    agent { label 'remote' }
+                    options {
+                        timeout(time: 2, unit: 'HOURS')
+                    }
+                    steps{
+                        deleteDir()
+                        unstash name: "workspace"
+                        sh "${CP_CMD} dist/traffic_ops-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_ops/traffic_ops.rpm"
+                        sh "${CP_CMD} dist/traffic_monitor-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_monitor/traffic_monitor.rpm"
+                        sh "${CP_CMD} dist/traffic_router-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_router/traffic_router.rpm"
+                        sh "${CP_CMD} dist/traffic_portal-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_portal/traffic_portal.rpm"
+                        sh "${CP_CMD} dist/tomcat-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_router/tomcat.rpm"
+                        sh "mkdir -p infrastructure/cdn-in-a-box/traffic_ops/overrides"
+                        sh "cd infrastructure/cdn-in-a-box && ${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficops-apitest-${EXECUTOR_NUMBER} -f docker-compose.yml up -d --build db trafficops-perl trafficportal trafficops"
+                        sh "cd infrastructure/cdn-in-a-box && ${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficops-apitest-${EXECUTOR_NUMBER} -f docker-compose.traffic-ops-test.yml up --build integration"
+                    }
+                    post {
+                        always {
+                            sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficops-apitest-${EXECUTOR_NUMBER} -f infrastructure/cdn-in-a-box/docker-compose.traffic-ops-test.yml --no-ansi down -v --rmi all || true"
+                            sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficops-apitest-${EXECUTOR_NUMBER} -f infrastructure/cdn-in-a-box/docker-compose.yml --no-ansi down -v --rmi all || true"
+                            junit 'junit/*.xml'
+                            archiveArtifacts artifacts: 'junit/*.log', allowEmptyArchive: true
+                            //deleteDir()
+                        }
+                    }
+                }
+                stage('TP Tests') {
+                    agent { label 'remote' }
+                    options {
+                        timeout(time: 2, unit: 'HOURS')
+                    }
+                    steps{
+                        deleteDir()
+                        unstash name: "workspace"
+                        sh "${CP_CMD} dist/traffic_ops-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_ops/traffic_ops.rpm"
+                        sh "${CP_CMD} dist/traffic_monitor-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_monitor/traffic_monitor.rpm"
+                        sh "${CP_CMD} dist/traffic_router-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_router/traffic_router.rpm"
+                        sh "${CP_CMD} dist/traffic_portal-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_portal/traffic_portal.rpm"
+                        sh "${CP_CMD} dist/tomcat-*x86_64.rpm infrastructure/cdn-in-a-box/traffic_router/tomcat.rpm"
+                        sh "mkdir -p infrastructure/cdn-in-a-box/traffic_ops/overrides"
+                        sh "cd infrastructure/cdn-in-a-box && ${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficportal-test-${EXECUTOR_NUMBER} -f docker-compose.yml up -d --build db trafficops-perl trafficportal trafficops"
+                        sh "cd infrastructure/cdn-in-a-box && ${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficportal-test-${EXECUTOR_NUMBER} -f docker-compose.traffic-portal-test.yml up --build portal-integration-test"
+                    }
+                    post {
+                        always {
+                            sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficportal-test-${EXECUTOR_NUMBER} -f infrastructure/cdn-in-a-box/docker-compose.traffic-portal-test.yml --no-ansi down -v --rmi all || true"
+                            sh "${DOCKER_COMPOSE_CMD} -p ${COMPOSE_PROJECT_NAME}-trafficportal-test-${EXECUTOR_NUMBER} -f infrastructure/cdn-in-a-box/docker-compose.yml --no-ansi down -v --rmi all || true"
+                            junit 'junit/*.xml'
+                            archiveArtifacts artifacts: 'junit/*.log', allowEmptyArchive: true
+                            //deleteDir()
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
