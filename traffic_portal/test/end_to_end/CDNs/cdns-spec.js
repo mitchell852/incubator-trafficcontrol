@@ -81,7 +81,7 @@ describe('Traffic Portal CDNs Test Suite', function() {
 		console.log("Generating DNSSEC keys for the new CDN and and verifying their expiration date");
 		await pageData.moreButton.click();
 		await pageData.manageDnssecKeysButton.click();
-		expect(pageData.expirationDate.getAttribute('value')).toEqual('');
+		expect(await pageData.expirationDate.getAttribute('value')).toEqual('');
 		await pageData.generateDnssecKeysButton.click();
 		await pageData.regenerateButton.click();
 		expect(pageData.confirmButton.isEnabled()).toBe(false);

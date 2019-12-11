@@ -25,10 +25,10 @@ under the License.
             <li class="active">DNSSEC Keys</li>
         </ol>
         <div class="pull-right">
-            <button class="btn btn-primary" title="Regenerate KSK" ng-click="regenerateKSK()" ng-show="ksk_new">Regenerate KSK</button>
+            <button id="regenerateKSKBtn" class="btn btn-primary" title="Regenerate KSK" ng-click="regenerateKSK()" ng-show="ksk_new">Regenerate KSK</button>
         </div>
         <div class="pull-right">
-            <button class="btn btn-primary" title="Generate DNSSEC Keys" ng-click="generate()">{{generateLabel()}}</button>
+            <button id="generateDNSSECBtn" class="btn btn-primary" title="Generate DNSSEC Keys" ng-click="generate()">{{generateLabel()}}</button>
         </div>
         <div class="clearfix"></div>
     </div>
@@ -57,7 +57,7 @@ under the License.
                 <div class="form-group">
                     <label class="control-label col-md-2 col-sm-2 col-xs-12">KSK Expiration (UTC)</label>
                     <div class="col-md-10 col-sm-10 col-xs-12">
-                        <input name="expirationDate" type="text" class="form-control" value="{{dateFormat(ksk_new.expirationDate * 1000, 'UTC: yyyy-mm-dd HH:MM:ss')}}" readonly autofocus>
+                        <input id="expirationDate" type="text" class="form-control" value="{{dateFormat(ksk_new.expirationDate * 1000, 'UTC: yyyy-mm-dd HH:MM:ss')}}" readonly autofocus>
                     </div>
                 </div>
             </fieldset>

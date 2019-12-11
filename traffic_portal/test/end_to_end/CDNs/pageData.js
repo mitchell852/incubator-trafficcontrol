@@ -28,13 +28,13 @@ module.exports = function(){
 	this.deletePermanentlyButton=element(by.buttonText('Delete Permanently'));
 	this.moreButton=element(by.buttonText('More'));
 	this.manageDnssecKeysButton=element(by.linkText('Manage DNSSEC Keys'));
-	this.generateDnssecKeysButton=element(by.buttonText('Generate DNSSEC Keys'));
+	this.generateDnssecKeysButton=element(by.id('generateDNSSECBtn'));
 	this.kskExpirationDays=element(by.name('kskExpirationDays'));
 	this.regenerateButton=element(by.buttonText('Regenerate'));
 	this.confirmInput=element(by.name('confirmEnterForm')).element(by.tagName('input'));
 	this.confirmButton=element(by.buttonText('Confirm'));
-	this.expirationDate=element(by.name('expirationDate'));
+	this.expirationDate=element(by.id('expirationDate'));
 	this.regenerateDnssecKeysButton=element(by.buttonText('Regenerate DNSSEC Keys'));
-	this.regenerateKskButton=element(by.buttonText('Regenerate KSK'));
+	this.regenerateKskButton=element(by.id('regenerateKSKBtn'));
 	this.generateButton=element(by.buttonText('Generate'));
 };
