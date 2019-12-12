@@ -144,6 +144,12 @@ traffic_ops/traffic_ops_golang/vendor/github\.com/lestrrat-go/.*, MIT
 # License files are licensed under their own terms, don't attempt to detect them.
 ^licenses/.*, Ignore
 
+# Ignore Comcast files
+^traffic_ops/traffic_ops_golang/plugin/.*, Ignore
+^traffic_ops/ort/atstccfg/plugin/.*, Ignore
+^grove/plugin/.*, Ignore
+^lib/go-atscfg/comcast_teak.go, Ignore
+
 # False positives
 licenseList\.go$, !GoBSD
 licenseList\.go$, !MIT
