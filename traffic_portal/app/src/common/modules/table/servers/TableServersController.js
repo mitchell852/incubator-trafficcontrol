@@ -407,20 +407,24 @@ var TableServersController = function(servers, $scope, $state, $uibModal, $windo
                 realtime: false
             },
             "ajax": function(data, callback, settings) {
+                var totalRecords = servers.length,
+                    matchingRecords = 300;
+
                 // make a regular ajax request using data.start and data.length
                 serverService.getServers({
                         limit: data.length,
                         offset: data.start + 1,
                         orderby: data.columns[data.order[0].column].data,
                         sortOrder: data.order[0].dir,
-                        contains: data.search.value
+                        searchValue: data.search.value,
+                        searchColumns: _.pluck(_.filter(data.columns, function(col) { return col.searchable === true; }), 'data').join()
                     }
                 ).then(
                     function(response) {
                         // map your server's response to the DataTables format and pass it to DataTables' callback
                         callback({
-                            recordsTotal: servers.length,
-                            recordsFiltered: servers.length,
+                            recordsTotal: totalRecords,
+                            recordsFiltered: matchingRecords,
                             data: response
                         });
                     }
