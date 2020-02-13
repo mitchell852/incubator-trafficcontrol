@@ -114,7 +114,10 @@ var TableDeliveryServiceServersController = function(deliveryService, servers, $
 			"lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
 			"iDisplayLength": 25,
 			"aaSorting": [],
-			"columns": $scope.columns,
+			"columnDefs": [
+				{ "orderable": false, "targets": 32 }
+			],
+			"columns": $scope.columns.concat([{ "name": "Action", "visible": true, "searchable": false }]),
 			"initComplete": function(settings, json) {
 				try {
 					// need to create the show/hide column checkboxes and bind to the current visibility

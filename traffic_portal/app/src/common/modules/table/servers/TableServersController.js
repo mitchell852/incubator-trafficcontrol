@@ -383,6 +383,13 @@ var TableServersController = function(servers, $scope, $state, $uibModal, $windo
         serversTable.rows().invalidate().draw();
     };
 
+    $scope.columnFilterFn = function(column) {
+        if (column.name === 'Action') {
+            return false;
+        }
+        return true;
+    };
+
     $scope.ssh = serverUtils.ssh;
 
     $scope.isOffline = serverUtils.isOffline;
