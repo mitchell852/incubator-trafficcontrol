@@ -407,19 +407,45 @@ var TableServersController = function(servers, $scope, $state, $uibModal, $windo
                 realtime: false
             },
             "ajax": function(data, callback, settings) {
-                var totalRecords = servers.length,
-                    matchingRecords = 300;
+
+                //  you can do this 2 ways
+                // 1. send ?searchValue=foo&searchColumns=a,b,c
+                // or
+                // 2. send ?name=foo&type=foo&age=foo
+                // this code is set up for the 2nd approach
+
+                var totalRecords = servers.length; // just make a call to with no filter or with limit=0 to get the overall count
+                var matchingRecords = servers.length/2; // use the count on the response
+                var searchValue = data.search.value;
+                // var searchColumns = _.pluck(_.filter(data.columns, function(col) { return col.searchable === true; }), 'data').join();
+                var searchColumns = _.pluck(_.filter(data.columns, function(col) { return col.searchable === true; }), 'data');
+
+                // var queryParams = {
+                //     limit: data.length,
+                //     offset: data.start + 1,
+                //     orderby: data.columns[data.order[0].column].data,
+                //     sortOrder: data.order[0].dir,
+                //     seachValue: searchValue,
+                //     searchColumns: searchColumns
+                // };
+
+                var queryParams = {
+                    limit: data.length,
+                    offset: data.start + 1,
+                    orderby: data.columns[data.order[0].column].data,
+                    sortOrder: data.order[0].dir
+                };
+
+                const searchQueryParams = {};
+                searchColumns.forEach(function(item, index) {
+                    searchQueryParams[item] = searchValue;
+                });
+
+                var mergedQueryParams = _.extend(queryParams, searchQueryParams);
+                console.log(mergedQueryParams);
 
                 // make a regular ajax request using data.start and data.length
-                serverService.getServers({
-                        limit: data.length,
-                        offset: data.start + 1,
-                        orderby: data.columns[data.order[0].column].data,
-                        sortOrder: data.order[0].dir,
-                        searchValue: data.search.value,
-                        searchColumns: _.pluck(_.filter(data.columns, function(col) { return col.searchable === true; }), 'data').join()
-                    }
-                ).then(
+                serverService.getServers(mergedQueryParams).then(
                     function(response) {
                         // map your server's response to the DataTables format and pass it to DataTables' callback
                         callback({
