@@ -433,7 +433,8 @@ var TableServersController = function(servers, $scope, $state, $uibModal, $windo
                     limit: data.length,
                     offset: data.start + 1,
                     orderby: data.columns[data.order[0].column].data,
-                    sortOrder: data.order[0].dir
+                    sortOrder: data.order[0].dir,
+                    searchType: 'OR'
                 };
 
                 const searchQueryParams = {};
