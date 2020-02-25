@@ -400,7 +400,7 @@ var TableServersController = function(servers, $scope, $state, $uibModal, $windo
         serversTable = $('#serversTable').DataTable({
             "serverSide": true,
             "paging": true,
-            "searching": { "regex": true },
+            "searchDelay": 1000, // this is to prevent a bunch of api calls while searching
             "lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
             "columns": $scope.columns,
             "colReorder": {
@@ -412,41 +412,41 @@ var TableServersController = function(servers, $scope, $state, $uibModal, $windo
                 // 1. send ?searchValue=foo&searchColumns=a,b,c
                 // or
                 // 2. send ?name=foo&type=foo&age=foo
-                // this code is set up for the 2nd approach
+                // this code is set up for the 1st approach
 
                 var totalRecords = servers.length; // just make a call to with no filter or with limit=0 to get the overall count
-                var matchingRecords = servers.length/2; // use the count on the response
+                var matchingRecords = Math.floor(Math.random() * totalRecords); // use the count on the response
                 var searchValue = data.search.value;
-                // var searchColumns = _.pluck(_.filter(data.columns, function(col) { return col.searchable === true; }), 'data').join();
                 var searchColumns = _.pluck(_.filter(data.columns, function(col) { return col.searchable === true; }), 'data');
-
-                // var queryParams = {
-                //     limit: data.length,
-                //     offset: data.start + 1,
-                //     orderby: data.columns[data.order[0].column].data,
-                //     sortOrder: data.order[0].dir,
-                //     seachValue: searchValue,
-                //     searchColumns: searchColumns
-                // };
 
                 var queryParams = {
                     limit: data.length,
                     offset: data.start + 1,
                     orderby: data.columns[data.order[0].column].data,
                     sortOrder: data.order[0].dir,
-                    searchType: 'OR'
+                    seachValue: searchValue,
+                    searchColumns: searchColumns.join()
                 };
 
-                const searchQueryParams = {};
-                searchColumns.forEach(function(item, index) {
-                    searchQueryParams[item] = searchValue;
-                });
+                // var queryParams = {
+                //     limit: data.length,
+                //     offset: data.start + 1,
+                //     orderby: data.columns[data.order[0].column].data,
+                //     sortOrder: data.order[0].dir,
+                //     searchType: 'OR'
+                // };
 
-                var mergedQueryParams = _.extend(queryParams, searchQueryParams);
-                console.log(mergedQueryParams);
+                // const searchQueryParams = {};
+                // searchColumns.forEach(function(item, index) {
+                //     searchQueryParams[item] = searchValue;
+                // });
+                //
+                // var mergedQueryParams = _.extend(queryParams, searchQueryParams);
+                // console.log(mergedQueryParams);
 
                 // make a regular ajax request using data.start and data.length
-                serverService.getServers(mergedQueryParams).then(
+                // change this to mergedQueryParams to try the 2nd approach
+                serverService.getServers(queryParams).then(
                     function(response) {
                         // map your server's response to the DataTables format and pass it to DataTables' callback
                         callback({
