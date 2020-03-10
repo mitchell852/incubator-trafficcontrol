@@ -311,6 +311,7 @@ func createV30(w http.ResponseWriter, r *http.Request, inf *api.APIInfo, reqDS t
 		&ds.RegionalGeoBlocking,
 		&ds.RemapText,
 		&ds.RoutingName,
+		&ds.ServiceCategoryId,
 		&ds.SigningAlgorithm,
 		&ds.SSLKeyVersion,
 		&ds.TenantID,
@@ -700,7 +701,8 @@ func updateV15(w http.ResponseWriter, r *http.Request, inf *api.APIInfo, reqDS *
 	// query the DB for existing 3.0 fields in order to "upgrade" this 1.5 request into a 3.0 request
 	query := `
 SELECT
-  ds.topology
+  ds.topology,
+  ds.service_category
 FROM
   deliveryservice ds
 WHERE
@@ -810,6 +812,7 @@ func updateV30(w http.ResponseWriter, r *http.Request, inf *api.APIInfo, reqDS *
 		&ds.RegionalGeoBlocking,
 		&ds.RemapText,
 		&ds.RoutingName,
+		&ds.ServiceCategoryId,
 		&ds.SigningAlgorithm,
 		&ds.SSLKeyVersion,
 		&ds.TenantID,
@@ -992,6 +995,7 @@ func readGetDeliveryServices(params map[string]string, tx *sqlx.Tx, user *auth.C
 		"tenant":           {"ds.tenant_id", api.IsInt},
 		"signingAlgorithm": {"ds.signing_algorithm", nil},
 		"topology":         {"ds.topology", nil},
+		"serviceCategory":	{"ds.service_category", api.IsInt},
 	}
 
 	where, orderBy, pagination, queryValues, errs := dbhelpers.BuildWhereAndOrderByAndPagination(params, queryParamsToSQLCols)
@@ -1216,6 +1220,8 @@ func GetDeliveryServices(query string, queryValues map[string]interface{}, tx *s
 			&ds.RegionalGeoBlocking,
 			&ds.RemapText,
 			&ds.RoutingName,
+			&ds.ServiceCategoryId,
+			&ds.ServiceCategoryName,
 			&ds.SigningAlgorithm,
 			&ds.RangeSliceBlockSize,
 			&ds.SSLKeyVersion,
@@ -1737,6 +1743,8 @@ ds.regex_remap,
 ds.regional_geo_blocking,
 ds.remap_text,
 ds.routing_name,
+ds.service_category,
+service_category.name as service_category_name,
 ds.signing_algorithm,
 ds.range_slice_block_size,
 ds.ssl_key_version,
@@ -1754,6 +1762,7 @@ JOIN type ON ds.type = type.id
 JOIN cdn ON ds.cdn_id = cdn.id
 LEFT JOIN profile ON ds.profile = profile.id
 LEFT JOIN tenant ON ds.tenant_id = tenant.id
+LEFT JOIN service_category ON ds.service_category = service_category.id
 `
 }
 
@@ -1803,20 +1812,21 @@ regex_remap=$39,
 regional_geo_blocking=$40,
 remap_text=$41,
 routing_name=$42,
-signing_algorithm=$43,
-ssl_key_version=$44,
-tenant_id=$45,
-tr_request_headers=$46,
-tr_response_headers=$47,
-type=$48,
-xml_id=$49,
-anonymous_blocking_enabled=$50,
-consistent_hash_regex=$51,
-max_origin_connections=$52,
-ecs_enabled=$53,
-range_slice_block_size=$54,
-topology=$55
-WHERE id=$56
+service_category=$43,
+signing_algorithm=$44,
+ssl_key_version=$45,
+tenant_id=$46,
+tr_request_headers=$47,
+tr_response_headers=$48,
+type=$49,
+xml_id=$50,
+anonymous_blocking_enabled=$51,
+consistent_hash_regex=$52,
+max_origin_connections=$53,
+ecs_enabled=$54
+range_slice_block_size=$55,
+topology=$56
+WHERE id=$57
 RETURNING last_updated
 `
 }
@@ -1869,6 +1879,7 @@ regex_remap,
 regional_geo_blocking,
 remap_text,
 routing_name,
+service_category,
 signing_algorithm,
 ssl_key_version,
 tenant_id,
@@ -1880,7 +1891,7 @@ xml_id,
 ecs_enabled,
 range_slice_block_size
 )
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53,$54,$55)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53,$54,$55,$56)
 RETURNING id, last_updated
 `
 }

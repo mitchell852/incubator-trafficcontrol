@@ -164,6 +164,8 @@ type DeliveryServiceNullableV30 DeliveryServiceNullable // this type alias shoul
 type DeliveryServiceNullable struct {
 	DeliveryServiceNullableV15
 	Topology *string `json:"topology" db:"topology"`
+	ServiceCategoryId *int `json:"serviceCategory" db:"service_category"`
+	ServiceCategoryName *string `json:"serviceCategoryName"`
 }
 
 type DeliveryServiceNullableV15 struct {
