@@ -709,6 +709,7 @@ WHERE
   ds.id = $1`
 	if err := inf.Tx.Tx.QueryRow(query, *reqDS.ID).Scan(
 		&dsV30.Topology,
+		&dsV30.ServiceCategoryId,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, http.StatusNotFound, fmt.Errorf("delivery service ID %d not found", *dsV30.ID), nil
