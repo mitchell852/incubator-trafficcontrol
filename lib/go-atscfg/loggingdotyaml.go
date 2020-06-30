@@ -124,7 +124,7 @@ func MakeLoggingDotYAML(
 			}
 			if logObjectFilters != "" {
 				logObjectFilters = strings.Replace(logObjectFilters, "\v", "", -1)
-				text += "  filters: [" + logObjectFilters + "]"
+				text += "  filters: [" + logObjectFilters + "]\n"
 			}
 		}
 	}
