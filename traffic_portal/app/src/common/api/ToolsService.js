@@ -33,7 +33,7 @@ var ToolsService = function($http, messageModel, ENV) {
 	this.generateISO = function(iso) {
 		respType = 'arraybuffer';
 
-		return $http.post(ENV.api['root'] + "isos", iso, { responseType:respType }).then(
+		return $http.post(ENV.api['legacy'] + "isos", iso, { responseType:respType }).then(
 			function(result) {
 				const isoName = iso.hostName + "." + iso.domainName + "-" + iso.osversionDir + ".iso";
 				download(result.data, isoName);
