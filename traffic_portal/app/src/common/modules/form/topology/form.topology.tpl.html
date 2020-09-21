@@ -30,10 +30,16 @@ under the License.
                     <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu-right dropdown-menu" uib-dropdown-menu>
-                    <li role="menuitem"><a ng-click="viewDeliveryServices()">View Delivery Services</a></li>
+                    <li role="menuitem">
+                        <button type="button" name="viewDeliveryServicesMenuItem" title="View Delivery Services" ng-click="viewDeliveryServices()">View Delivery Services</button>
+                    </li>
                     <li class="divider"></li>
-                    <li role="menuitem"><a ng-click="viewCacheGroups()">View Cache Groups</a></li>
-                    <li role="menuitem"><a ng-click="viewServers()">View Servers</a></li>
+                    <li role="menuitem">
+                        <button type="button" name="viewCacheGroupsMenuItem" title="View Cache Groups" ng-click="viewCacheGroups()">View Cache Groups</button>
+                    </li>
+                    <li role="menuitem">
+                        <button type="button" name="viewServersMenuItem" title="View Servers" ng-click="viewServers()">View Servers</button>
+                    </li>
                 </ul>
             </div>
         </div>
