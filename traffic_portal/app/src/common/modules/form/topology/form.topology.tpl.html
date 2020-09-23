@@ -40,6 +40,13 @@ under the License.
                     <li role="menuitem">
                         <button type="button" name="viewServersMenuItem" title="View Servers" ng-click="viewServers()">View Servers</button>
                     </li>
+                    <li class="divider"></li>
+                    <li role="menuitem">
+                        <button type="button" title="Queue Server Updates for {{::topology.name}} Topology" ng-click="confirmTopologyQueueServerUpdates(topology)">Queue Server Updates for {{::topology.name}} Topology</button>
+                    </li>
+                    <li role="menuitem">
+                        <button type="button" title="Clear Server Updates for {{::topology.name}} Topology" ng-click="confirmTopologyClearServerUpdates(topology)">Clear Server Updates for {{::topology.name}} Topology</button>
+                    </li>
                 </ul>
             </div>
         </div>
